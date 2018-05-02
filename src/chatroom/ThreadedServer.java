@@ -7,11 +7,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class ThreadedServer{
-	private static ServerSocket serverSocket = null;
-	private static Socket clientSocket = null;
-
 	private static final int maxClientsCount = 10;
 	private static final ClientThread[] threads = new ClientThread[maxClientsCount];
+	private static ServerSocket serverSocket = null;
+
+	static ClientThread[] getThreads() {
+		return threads;
+	}
 	
 	public static void main(String[] args){
 		int portNumber = 2222;
@@ -21,7 +23,7 @@ public class ThreadedServer{
 				"Using default port number " + portNumber);
 		}
 		else{
-			portNumber = Integer.valueOf(args[0]).intValue();
+			portNumber = Integer.valueOf(args[0]);
 		}
 
 		try {
@@ -44,19 +46,28 @@ public class ThreadedServer{
 		
 		while(true) {
 			try {
-				clientSocket = serverSocket.accept();
-				int i = 0;
+				Socket clientSocket = serverSocket != null ? serverSocket.accept() : null;
+				int i;
 				for(i = 0; i < maxClientsCount;i++){
 					if(threads[i] == null){
-						(threads[i] = new ClientThread(clientSocket, threads)).start();
+						(threads[i] = new ClientThread(clientSocket)).start();
 						break;
 					}
 				}
 				if(i == maxClientsCount){
-					PrintStream ps = new PrintStream(clientSocket.getOutputStream());
-					ps.println("Server too busy. Try later!");
-					ps.close();
-					clientSocket.close();
+					PrintStream ps = null;
+					if (clientSocket != null) {
+						ps = new PrintStream(clientSocket.getOutputStream());
+					}
+					if (ps != null) {
+						ps.println("Server too busy. Try later!");
+					}
+					if (ps != null) {
+						ps.close();
+					}
+					if (clientSocket != null) {
+						clientSocket.close();
+					}
 				}
 			}
 			catch(BindException e){

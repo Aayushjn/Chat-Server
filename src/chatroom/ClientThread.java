@@ -6,19 +6,17 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-public class ClientThread extends Thread{
-	private BufferedReader in = null;
+class ClientThread extends Thread{
 	private final ClientThread[] threads;
+	private final Socket clientSocket;
+	private final int maxClientsCount;
 	private PrintWriter out = null;
-	private Socket clientSocket = null;
-
-	private int maxClientsCount = 0;
 	private String clientName = null;
 	
-	public ClientThread(Socket clientSocket, ClientThread[] threads) {
+	ClientThread(Socket clientSocket) {
 		this.clientSocket = clientSocket;
-		this.threads = threads;
-		maxClientsCount = threads.length;
+		this.threads = ThreadedServer.getThreads();
+		maxClientsCount = ThreadedServer.getThreads().length;
 	}
 	
 	public void run() {
@@ -26,7 +24,7 @@ public class ClientThread extends Thread{
 		ClientThread[] threads = this.threads;
 		
 		try {
-			in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			out = new PrintWriter(clientSocket.getOutputStream());
 			String name;
 			while(true) {

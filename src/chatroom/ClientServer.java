@@ -1,12 +1,12 @@
 package chatroom;
 
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
-public class Main{
-	private static Object[] selectionValues = {"Server", "Client"};
-	private static String initialSelection = "Server";
+public class ClientServer{
+	private static final Object[] selectionValues = {"Server", "Client"};
 
 	public static void main(String[] args) {
+		String initialSelection = "Server";
 		Object selection = JOptionPane.showInputDialog(null, "Login as : ", "ChatRoom", JOptionPane.QUESTION_MESSAGE, null, selectionValues, initialSelection);
 		if("Server".equals(selection)){
 			String[] arguments = new String[] {};

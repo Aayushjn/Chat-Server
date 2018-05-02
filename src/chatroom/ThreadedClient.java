@@ -1,7 +1,6 @@
 package chatroom;
 
 import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -22,121 +21,6 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 public class ThreadedClient{
-	static class ChatAccess extends Observable{
-		private Socket socket = null;
-		private OutputStream os = null;
-
-		private static final String CRLF = "\r\n";
-
-		@Override
-		public void notifyObservers(){
-			super.setChanged();
-			super.notifyObservers();
-		}
-
-		public void initSocket(String server, int port) throws IOException{
-			socket = new Socket(server, port);
-			os = socket.getOutputStream();
-
-			Thread receivingThread = new Thread(){
-				private String line;
-
-				@Override
-				public void run(){
-					try{
-						BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-						while((line = br.readLine()) != null){
-							notifyObservers();
-						}
-					}
-					catch(IOException e){
-						notifyObservers(e);
-					}
-				}
-			};
-			receivingThread.start();
-		}
-
-		public void send(String text){
-			try{
-				os.write((text + CRLF).getBytes());
-				os.flush();
-			}
-			catch(IOException e){
-				notifyObservers(e);
-			}
-		}
-
-		public void close(){
-			try{
-				os.close();
-				socket.close();
-			}
-			catch(IOException e){
-				notifyObservers(e);
-			}
-		}
-	}
-
-	static class ChatFrame extends JFrame implements Observer{
-		private JButton sendButton;
-		private JTextArea textArea;
-		private JTextField inputTextField;
-
-		private ChatAccess chatAccess;
-
-		public ChatFrame(ChatAccess chatAccess){
-			this.chatAccess = chatAccess;
-			chatAccess.addObserver(this);
-			buildGUI();
-		}
-
-		private void buildGUI(){
-			textArea = new JTextArea(20, 50);
-			textArea.setEditable(false);
-			textArea.setLineWrap(true);
-			add(new JScrollPane(textArea), BorderLayout.CENTER);
-
-			Box box = Box.createHorizontalBox();
-			add(box, BorderLayout.SOUTH);
-			inputTextField = new JTextField();
-			sendButton = new JButton("Send");
-			box.add(inputTextField);
-			box.add(sendButton);
-
-			ActionListener sendListener = new ActionListener(){
-				public void actionPerformed(ActionEvent e){
-					String str = inputTextField.getText();
-					if(str != null && str.trim().length() > 0){
-						chatAccess.send(str);
-					}
-					inputTextField.selectAll();
-					inputTextField.requestFocus();
-					inputTextField.setText("");
-				}
-			};
-			inputTextField.addActionListener(sendListener);
-			sendButton.addActionListener(sendListener);
-
-			this.addWindowListener(new WindowAdapter(){
-				public void windowClosing(WindowEvent e){
-					chatAccess.close();
-				}
-			});
-		}
-
-		public void update(Observable o, Object obj){
-			final Object finalObj = obj;
-			SwingUtilities.invokeLater(new Runnable(){
-				public void run(){
-					textArea.append(finalObj.toString());
-					textArea.append("\n");
-				}
-			});
-		}
-	}
-
-
 	public static void main(String[] args) {
 		String server = args[0];
 		int port = 4444;
@@ -157,6 +41,109 @@ public class ThreadedClient{
 			System.out.println("Cannot connect to " + server + ":" + port);
 			e.printStackTrace();
 			System.exit(0);
+		}
+	}
+
+	static class ChatAccess extends Observable{
+		private static final String CRLF = "\r\n";
+		private Socket socket = null;
+		private OutputStream os = null;
+
+		@Override
+		public void notifyObservers(){
+			super.setChanged();
+			super.notifyObservers();
+		}
+
+		void initSocket(String server, int port) throws IOException{
+			socket = new Socket(server, port);
+			os = socket.getOutputStream();
+
+			Thread receivingThread = new Thread(() -> {
+				try{
+					BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					while((br.readLine()) != null){
+						notifyObservers();
+					}
+				}
+				catch(IOException e){
+					notifyObservers(e);
+				}
+			});
+			receivingThread.start();
+		}
+
+		void send(String text){
+			try{
+				os.write((text + CRLF).getBytes());
+				os.flush();
+			}
+			catch(IOException e){
+				notifyObservers(e);
+			}
+		}
+
+		void close(){
+			try{
+				os.close();
+				socket.close();
+			}
+			catch(IOException e){
+				notifyObservers(e);
+			}
+		}
+	}
+
+	static class ChatFrame extends JFrame implements Observer{
+		private final ChatAccess chatAccess;
+		private JButton sendButton;
+		private JTextArea textArea;
+		private JTextField inputTextField;
+
+		ChatFrame(ChatAccess chatAccess){
+			this.chatAccess = chatAccess;
+			chatAccess.addObserver(this);
+			buildGUI();
+		}
+
+		private void buildGUI(){
+			textArea = new JTextArea(20, 50);
+			textArea.setEditable(false);
+			textArea.setLineWrap(true);
+			add(new JScrollPane(textArea), BorderLayout.CENTER);
+
+			Box box = Box.createHorizontalBox();
+			add(box, BorderLayout.SOUTH);
+			inputTextField = new JTextField();
+			sendButton = new JButton("Send");
+			box.add(inputTextField);
+			box.add(sendButton);
+
+			ActionListener sendListener = e -> {
+				String str = inputTextField.getText();
+				if(str != null && str.trim().length() > 0){
+					chatAccess.send(str);
+				}
+				inputTextField.selectAll();
+				inputTextField.requestFocus();
+				inputTextField.setText("");
+			};
+			inputTextField.addActionListener(sendListener);
+			sendButton.addActionListener(sendListener);
+
+			this.addWindowListener(new WindowAdapter(){
+				public void windowClosing(WindowEvent e){
+					chatAccess.close();
+				}
+			});
+		}
+
+		public void update(Observable o, Object obj){
+			final Object finalObj = obj;
+			SwingUtilities.invokeLater(() -> {
+				textArea.append(finalObj.toString());
+				textArea.append("\n");
+			});
 		}
 	}
 }
